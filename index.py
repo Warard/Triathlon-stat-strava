@@ -19,23 +19,28 @@ last_sunday_datetime = datetime(last_monday.year, last_monday.month, last_monday
 after_date = last_monday_datetime # Show run after this date   (YYYY, MM, DD)  
 before_date = today_datetime # Show run before this date
 
-# Zones limits
-zone_1 = 144
-zone_2 = 158
-zone_3 = 172
-zone_4 = 186
-
-def read_text_from_file(file_name: str) -> str:
+def read_text_from_file(file_name: str, oneLineFile: bool=True):
     """
-    Read a text from a single line txt file and return it
+    Read a text from a .txt file saved in the same directory than the index.py file, and return it.
     parameter
         str file_name : Name of the file (with the extension in the name)
+        bool OneLineFile : Does the file contains one line (then oneLineFile should be set to True, function will return str) or several lines (False, return list)
     return 
         str text : the one line text from the file file_name
     """
     with open(file_name) as file:
-        text = file.readline()
+        if oneLineFile:
+            text = file.readline()
+        else:
+            text = file.readlines()
     return text
+
+# Zones limits
+HR_zones = read_text_from_file('HR_zones.txt', False)
+zone_1 = int(HR_zones[0]) #144
+zone_2 = int(HR_zones[1]) #158
+zone_3 = int(HR_zones[2]) #172
+zone_4 = int(HR_zones[3]) #186
 
 client_id = int(read_text_from_file('client_id.txt'))
 client_secret = read_text_from_file('client_secret.txt')
@@ -60,55 +65,67 @@ def get_access_token() -> str:
         #"code":"",
         #"grant_type": "authorization_code"
     }
-    
-    r = requests.post(API_url_for_auth_token, data=payload_for_auth_token)
-    if r.status_code == 200:
-        api_access_token = r.json()['access_token']
-        print(f"The access token is {api_access_token}")
-    else:
-        print("Erreur, code de statut ", r.status_code)
+    try:
+        r = requests.post(API_url_for_auth_token, data=payload_for_auth_token)
+        if r.status_code == 200:
+            api_access_token = r.json()['access_token']
+            print(f"Connection to Strava server successfull ! The access token is {api_access_token}")
+        else:
+            print("Error while connecting to strava Server. HTTP status code is: ", r.status_code)
+        return api_access_token
+    except:
+        print('Error while refreshing access token. Check your internet connection and try again')
+        exit()
 
-    return api_access_token
 
 
 ###----- GET LIST OF ACTIVITIES -----###
-def get_all_activities(api_access_token: str):
+def get_all_activities(api_access_token: str) -> json:
     """
     Call to the API to get the list of all the recorded activities
     parameter
         str api_access_token
     return 
-        json file 
+        json json_data : The result of the web request in json format
     """
-    print('Getting all activities')
+    print('Getting all activities ...')
     API_url_for_activities = "https://www.strava.com/api/v3/athlete/activities"
     header = {"Authorization": "Bearer " + api_access_token}
     param = {'per_page': 200, 'page': 1}
     
-    r = requests.get(API_url_for_activities, headers=header, params=param)
-    json_data = r.json() # Convert the server answer in json format
-    with open('data.json', 'w') as file:
-        json.dump(json_data, file) # Write the json file in the current directory
-    return json_data
+    try: 
+        r = requests.get(API_url_for_activities, headers=header, params=param)
+        json_data = r.json() # Convert the server answer in json format
+        with open('data.json', 'w') as file:
+            json.dump(json_data, file) # Write the json file in the current directory
+        return json_data
+    except:
+        print('Error while getting the list of all activities.')
+        exit()
+    
 
 ###----- GET A RUN DATAS FROM A RUN_ID -----###
-def get_activity_by_id(api_access_token: str, id: int):
+def get_activity_by_id(api_access_token: str, id: int) -> json:
     """
     Call to the API to get details on an activity from its id
     parameters
         str api_access_token  
     return 
-        json file
+        json json_data : The result of the web request in json format
     """
     API_url_for_activities = "https://www.strava.com/api/v3/activities/" + str(id)
     header = {"Authorization": "Bearer " + api_access_token}
     param = {"id": id}
 
-    r = requests.get(API_url_for_activities, headers=header, params=param)
-    json_data = r.json()
-    with open('run_data.json', 'w') as f:
-        json.dump(json_data, f)
-    return json_data
+    try: 
+        r = requests.get(API_url_for_activities, headers=header, params=param)
+        json_data = r.json()
+        with open('run_data.json', 'w') as f:
+            json.dump(json_data, f)
+        return json_data
+    except:
+        print(f'Error while getting activity with id {id}')
+        exit()
 
 def extract_datas_from_activities(activities_id: list) -> dict:
     """
@@ -132,7 +149,7 @@ def extract_datas_from_activities(activities_id: list) -> dict:
         json_run_data = get_activity_by_id(api_access_token, id) 
         
         compteur +=1
-        print(f'Analyse du run n°{compteur} / {len(activities_id)} ')
+        print(f'Analysing run n°{compteur} / {len(activities_id)} ')
         
         # Sorting HR in the 5 zones
         for run_data in json_run_data['splits_metric']:
@@ -155,9 +172,9 @@ def extract_datas_from_activities(activities_id: list) -> dict:
                 else:
                     list_zone_5.append(list_of_elapsed_time[i])
                 i += 1
-            except Exception as e:
-                print(f'An error occured while getting datas on run {compteur} / {len(activities_id)}')
-                print(e)
+            except:
+                print(f'An error occured while getting or analysing datas on run {compteur} / {len(activities_id)}')
+                exit()
 
     result['total_time'] = sum(list_of_elapsed_time)
     result['total_distance'] = sum(list_of_distances)
@@ -221,7 +238,7 @@ def make_all_sports_stats(bef_date: datetime=before_date, aft_date: datetime=aft
     list_of_dates = data['start_date'].values.tolist()
     list_of_sports_types = data['sport_type'].values.tolist()
     list_of_distances = data['distance'].values.tolist()
-    print(f'')
+
     index_for_sum = 0
     for time in data['moving_time']:
         if check_date(date=list_of_dates[i], format='Strava', before_date_param=bef_date, after_date_param=aft_date):
@@ -262,8 +279,6 @@ def make_all_sports_stats(bef_date: datetime=before_date, aft_date: datetime=aft
 
     result['sum_times_of_activities'] = cumuled_sum_time_of_act
     result['days_of_activities'] = days_of_activities
-
-    print(f' run distances : {run_distances}')
 
     return result
 
@@ -314,7 +329,7 @@ time_in_zones = [sum(result['times_in_zone_1']), sum(result['times_in_zone_2']),
 
 
 data_to_plot = []
-labels = 'zone 1 [0-' + str(zone_1) + ']', 'Z2, E.F. [' + str(zone_1) + '-' + str(zone_2) + ']', 'Z3/S.V.1, E.A. [' + str(zone_2) + '-' + str(zone_3) + ']', 'Z4/S.V.2, Seuil aérobie [' + str(zone_3) + '-' + str(zone_4) + ']', 'Z5, Seuil anaérobie [' + str(zone_4) + '-' + '220]'
+labels = 'zone 1 [0-' + str(zone_1) + ']', 'Z2, E.F. [' + str(zone_1) + '-' + str(zone_2) + ']', 'Z3/S.V.1/Seuil aérobie, E.A. [' + str(zone_2) + '-' + str(zone_3) + ']', 'Z4/S.V.2, Seuil anaérobie [' + str(zone_3) + '-' + str(zone_4) + ']', 'Z5, VMA & VO2max [' + str(zone_4) + '-' + '220]'
 for time in time_in_zones:
     data_to_plot.append(time)
 
