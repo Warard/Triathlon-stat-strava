@@ -19,6 +19,33 @@ last_sunday_datetime = datetime(last_monday.year, last_monday.month, last_monday
 after_date = last_monday_datetime # Show run after this date   (YYYY, MM, DD)  
 before_date = today_datetime # Show run before this date
 
+# Number of days in the specified month
+if today.month -1 == 1:
+    nb_days_last_month = 31
+elif today.month -1 == 2:
+    nb_days_last_month = 28
+elif today.month -1 == 3:
+    nb_days_last_month = 31
+elif today.month -1 == 4:
+    nb_days_last_month = 30
+elif today.month -1 == 5:
+    nb_days_last_month = 31
+elif today.month -1 == 6:
+    nb_days_last_month = 30
+elif today.month -1 == 7:
+    nb_days_last_month = 31
+elif today.month -1 == 8:
+    nb_days_last_month = 31
+elif today.month -1 == 9:
+    nb_days_last_month = 30
+elif today.month -1 == 10:
+    nb_days_last_month = 31
+elif today.month -1 == 11:
+    nb_days_last_month = 30
+elif today.month -1 == 12:
+    nb_days_last_month = 31
+
+
 def read_text_from_file(file_name: str, oneLineFile: bool=True):
     """
     Read a text from a .txt file saved in the same directory than the index.py file, and return it.
@@ -221,11 +248,13 @@ def make_all_sports_stats(bef_date: datetime=before_date, aft_date: datetime=aft
     run_time = []
     swim_time = []
     bike_time = []
+    hike_time = []
     otherSport_time = []
 
     run_distances = []
     swim_distances = []
     bike_distances = []
+    hike_distances = []
 
     days_of_activities = []
     times_of_activities = []
@@ -252,6 +281,9 @@ def make_all_sports_stats(bef_date: datetime=before_date, aft_date: datetime=aft
             elif list_of_sports_types[i] == 'Ride':
                 bike_time.append(time)
                 bike_distances.append(list_of_distances[i])
+            elif list_of_sports_types[i] == 'Hike':
+                hike_time.append(time)
+                hike_distances.append(list_of_distances[i])
             else:
                 otherSport_time.append(time)
 
@@ -270,12 +302,14 @@ def make_all_sports_stats(bef_date: datetime=before_date, aft_date: datetime=aft
     result['total_run_time'] = round(sum(run_time)/60, 1)
     result['total_swim_time'] = round(sum(swim_time)/60, 1)
     result['total_bike_time'] = round(sum(bike_time)/60, 1)
+    result['total_hike_time'] = round(sum(hike_time)/60, 1)
     result['otherSport_time'] = round(sum(otherSport_time)/60, 1)
     result['times_of_activities'] = sum(times_of_activities)
 
     result['total_run_distance'] = round(sum(run_distances)/1000, 1)
     result['total_bike_distance'] = round(sum(bike_distances)/1000, 1)
     result['total_swim_distance'] = round(sum(swim_distances)/1000, 1)
+    result['total_hike_distance'] = round(sum(hike_distances)/1000, 1)
 
     result['sum_times_of_activities'] = cumuled_sum_time_of_act
     result['days_of_activities'] = days_of_activities
@@ -345,18 +379,21 @@ else:
 
 this_wk_act = make_all_sports_stats(aft_date=last_monday_datetime, bef_date=today_datetime)
 from_begin_of_month_act = make_all_sports_stats(aft_date=datetime(today.year, today.month, 1), bef_date=today_datetime)
-last_month_act = make_all_sports_stats(aft_date=datetime(today.year, today.month-1, 1), bef_date=datetime(today.year, today.month-1, 31))
+last_month_act = make_all_sports_stats(aft_date=datetime(today.year, today.month-1, 1), bef_date=datetime(today.year, today.month-1, nb_days_last_month))
 last_wk_act = make_all_sports_stats(aft_date=scnd_last_monday_datetime, bef_date=last_sunday_datetime)
 
 
-if this_wk_act['total_run_time'] > 0 or this_wk_act['total_swim_time'] > 0 or this_wk_act['total_bike_time'] > 0 :
-    ax[0, 1].set_ylim(0, max(this_wk_act['total_run_time'], this_wk_act['total_bike_time'], this_wk_act['total_swim_time']) + 20)
-    ax[0, 1].bar(["Run", "Swim", "Bike", "Other"], [this_wk_act['total_run_time'], this_wk_act['total_swim_time'], this_wk_act['total_bike_time'], this_wk_act['otherSport_time']])
-    ax[0, 1].set_title(f"{len(this_wk_act['days_of_activities'])} activités cette semaine ({min_to_hhmm(this_wk_act['times_of_activities'])})")
+if this_wk_act['total_run_time'] > 0 or this_wk_act['total_swim_time'] > 0 or this_wk_act['total_bike_time'] > 0 or this_wk_act['otherSport_time']:
+    ax[0, 1].set_ylim(0, max(this_wk_act['total_run_time'], this_wk_act['total_bike_time'], this_wk_act['total_swim_time'], this_wk_act['otherSport_time']) + 20)
+    ax[0, 1].bar(["Run", "Swim", "Bike", "Hike", "Other"], [this_wk_act['total_run_time'], this_wk_act['total_swim_time'], this_wk_act['total_bike_time'], this_wk_act['total_hike_time'], this_wk_act['otherSport_time']])
+    ax[0, 1].set_title(f"{len(this_wk_act['days_of_activities'])} activités cette semaine ({min_to_hhmm(this_wk_act['times_of_activities'] - this_wk_act['total_hike_time'])})")
+    print(f"TOTAL HIKE TIME > {this_wk_act['total_hike_time']}")
     
     ax[0, 1].text(-0.1, this_wk_act['total_run_time'] + 2, this_wk_act['total_run_distance'])
     ax[0, 1].text(0.9, this_wk_act['total_swim_time'] + 2, this_wk_act['total_swim_distance'])
     ax[0, 1].text(1.9, this_wk_act['total_bike_time'] + 2, this_wk_act['total_bike_distance'])
+    ax[0, 1].text(2.9, this_wk_act['total_hike_time'] + 2, this_wk_act['total_hike_distance'])
+    ax[0, 1].text(3.9, this_wk_act['otherSport_time'] + 2, this_wk_act['otherSport_time'])
 else:
     ax[0, 1].text(0.5, 0.5, 'No activity this week yet !', horizontalalignment = 'center', verticalalignment = 'center')
 
@@ -374,12 +411,14 @@ ax[1, 0].set_title(f"{len(from_begin_of_month_act['days_of_activities'])} activi
 # From the last monday to the last sunday (both include)
 if last_wk_act['total_run_time'] > 0 or last_wk_act['total_swim_time'] > 0 or last_wk_act['total_bike_time'] > 0 :
     ax[1, 1].set_ylim(0, max(last_wk_act['total_run_time'], last_wk_act['total_bike_time'], last_wk_act['total_swim_time'])+20)
-    ax[1, 1].bar(["Run", "Swim", "Bike", "Other"], [last_wk_act['total_run_time'], last_wk_act['total_swim_time'], last_wk_act['total_bike_time'], last_wk_act['otherSport_time']])
-    ax[1, 1].set_title(f"{len(last_wk_act['days_of_activities'])} activités la semaine passée ({min_to_hhmm(last_wk_act['times_of_activities'])})")
+    ax[1, 1].bar(["Run", "Swim", "Bike", "Hike", "Other"], [last_wk_act['total_run_time'], last_wk_act['total_swim_time'], last_wk_act['total_bike_time'], last_wk_act['total_hike_time'], last_wk_act['otherSport_time']])
+    ax[1, 1].set_title(f"{len(last_wk_act['days_of_activities'])} activités la semaine passée ({min_to_hhmm(last_wk_act['times_of_activities'] - last_wk_act['total_hike_time'])})")
     
     ax[1, 1].text(-0.1, last_wk_act['total_run_time'] + 2, last_wk_act['total_run_distance'])
     ax[1, 1].text(0.9, last_wk_act['total_swim_time'] + 2, last_wk_act['total_swim_distance'])
     ax[1, 1].text(1.9, last_wk_act['total_bike_time'] + 2, last_wk_act['total_bike_distance'])
+    ax[1, 1].text(2.9, last_wk_act['total_hike_time'] + 2, last_wk_act['total_hike_distance'])
+    ax[1, 1].text(3.9, last_wk_act['otherSport_time'] + 2, last_wk_act['otherSport_time'])
 else:
     ax[1, 1].text(0.5, 0.5, 'No activity last week !', horizontalalignment = 'center', verticalalignment = 'center')
 
