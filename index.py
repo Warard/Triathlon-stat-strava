@@ -19,7 +19,7 @@ last_sunday_datetime = datetime(last_monday.year, last_monday.month, last_monday
 after_date = last_monday_datetime # Show run after this date   (YYYY, MM, DD)  
 before_date = today_datetime # Show run before this date
 
-# Number of days in the specified month
+# Number of days in the passed month
 if today.month -1 == 1:
     nb_days_last_month = 31
 elif today.month -1 == 2:
@@ -44,8 +44,11 @@ elif today.month -1 == 11:
     nb_days_last_month = 30
 elif today.month -1 == 12:
     nb_days_last_month = 31
+else:
+    nb_days_last_month = 30
+    print('Error occured to get the number of days of the last month..')
 
-
+# Function used to get the HR values from a text file
 def read_text_from_file(file_name: str, oneLineFile: bool=True):
     """
     Read a text from a .txt file saved in the same directory than the index.py file, and return it.
@@ -85,8 +88,8 @@ def get_access_token() -> str:
 
     API_url_for_auth_token = "https://www.strava.com/oauth/token"
     payload_for_auth_token = {
-        "client_id": client_id, # From my account
-        "client_secret": client_secret, # From my account
+        "client_id": client_id, # From my API app account
+        "client_secret": client_secret, # From my API app account
         "refresh_token": refresh_token, # See https://www.youtube.com/watch?v=sgscChKfGyg to see how to get a refresh token
         "grant_type": "refresh_token"
         #"code":"",
@@ -367,6 +370,7 @@ labels = 'zone 1 [0-' + str(zone_1) + ']', 'Z2, E.F. [' + str(zone_1) + '-' + st
 for time in time_in_zones:
     data_to_plot.append(time)
 
+# No activity <=> Data in the 5 HR zones is [0, 0, 0, 0, 0].
 if data_to_plot != [0, 0, 0, 0, 0]:
     ax[0, 0].pie(data_to_plot, labels=labels, autopct='%1.1f%%', colors=['blue', 'green', 'orange', 'red', 'purple'], shadow=True)
     ax[0, 0].set_title('Du ' + str(after_date.day) + '/' + str(after_date.month) + ' au ' + str(before_date.day) + '/' + str(before_date.month) +' | ' + str(timedelta(seconds=result['total_time'])) + ' | ' + str(round(result['total_distance']/1000, 1)) + 'kms')
@@ -377,9 +381,23 @@ else:
 # Get this week activities time data
 # From the last sunday to today (both are include)
 
+# Activities of this current week
 this_wk_act = make_all_sports_stats(aft_date=last_monday_datetime, bef_date=today_datetime)
+
+# Activities from the beginning of the month
 from_begin_of_month_act = make_all_sports_stats(aft_date=datetime(today.year, today.month, 1), bef_date=today_datetime)
-last_month_act = make_all_sports_stats(aft_date=datetime(today.year, today.month-1, 1), bef_date=datetime(today.year, today.month-1, nb_days_last_month))
+
+# Activities of the last 
+#If the current date is jannuary, the last month was during the previous year and during the month 12 
+if today.month == 1:
+    last_month = 12
+    last_year = today.year -1
+# In the case we are not in january
+else:
+    last_month = today.month -1
+    last_year = today.year
+
+last_month_act = make_all_sports_stats(aft_date=datetime(last_year, last_month, 1), bef_date=datetime(last_year, last_month, nb_days_last_month))
 last_wk_act = make_all_sports_stats(aft_date=scnd_last_monday_datetime, bef_date=last_sunday_datetime)
 
 
@@ -409,8 +427,8 @@ ax[1, 0].set_title(f"{len(from_begin_of_month_act['days_of_activities'])} activi
 
 ###----- BOTTOM RIGHT CHART : LAST WEEK -----###
 # From the last monday to the last sunday (both include)
-if last_wk_act['total_run_time'] > 0 or last_wk_act['total_swim_time'] > 0 or last_wk_act['total_bike_time'] > 0 :
-    ax[1, 1].set_ylim(0, max(last_wk_act['total_run_time'], last_wk_act['total_bike_time'], last_wk_act['total_swim_time'])+20)
+if last_wk_act['total_run_time'] > 0 or last_wk_act['total_swim_time'] > 0 or last_wk_act['total_bike_time'] > 0 or last_wk_act['otherSport_time'] > 0:
+    ax[1, 1].set_ylim(0, max(last_wk_act['total_run_time'], last_wk_act['total_bike_time'], last_wk_act['total_swim_time'], last_wk_act['otherSport_time'])+20)
     ax[1, 1].bar(["Run", "Swim", "Bike", "Hike", "Other"], [last_wk_act['total_run_time'], last_wk_act['total_swim_time'], last_wk_act['total_bike_time'], last_wk_act['total_hike_time'], last_wk_act['otherSport_time']])
     ax[1, 1].set_title(f"{len(last_wk_act['days_of_activities'])} activités la semaine passée ({min_to_hhmm(last_wk_act['times_of_activities'] - last_wk_act['total_hike_time'])})")
     
